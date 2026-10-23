@@ -99,7 +99,7 @@
 
 <!-- STEP 1: CAMERA -->
 <section id="step-camera" class="step active">
-  <p class="instructions">Fit your <b>head and shoulders</b> inside the outline, look at the camera and press <b>Take photo</b>.<br><small>Tip: Taking off glasses, if you're wearing them, makes the effect stronger.</small></p>
+  <p class="instructions">Fit your head approximately inside the outline, look at the camera and press <b>Take photo</b>.<br><small>Tip: Take off your glasses, if you're wearing any.</small></p>
   <div class="stage">
     <video id="video" autoplay playsinline muted></video>
     <svg viewBox="0 0 300 400" preserveAspectRatio="none" aria-hidden="true">
@@ -113,8 +113,8 @@
       <rect width="300" height="400" fill="rgba(0,0,0,0.45)" mask="url(#cutout)"/>
       <g fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="10 7" stroke-linecap="round">
         <ellipse cx="150" cy="160" rx="75" ry="100"/>
-        <path d="M20 400 C25 340 70 315 118 305 C124 293 126 275 126 255"/>
-        <path d="M174 255 C174 275 176 293 182 305 C230 315 275 340 280 400"/>
+        <!-- <path d="M20 400 C25 340 70 315 118 305 C124 293 126 275 126 255"/>
+        <path d="M174 255 C174 275 176 293 182 305 C230 315 275 340 280 400"/> -->
       </g>
     </svg>
     <div id="countdown"></div>
@@ -446,7 +446,7 @@ function onTurn() {
   const turned = faces.classList.toggle("turned");
   $("btn-turn").textContent = turned ? "🔄 Turn them back" : "🔄 Turn the pictures around";
   if (turned) {
-    $("result-text").innerHTML = "<b>Surprise!</b> Now you can see what really happened to the eyes and mouth.";
+    $("result-text").innerHTML = "<b>Surprise!</b> Now you can see what really happened to the eyes and mouth.<br>Scroll down for an explanation.";
     $("explain").style.display = "block";
   }
 }
