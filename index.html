@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Thatcher Illusion</title>
+<style>
+  :root { --green:#1fbf4a; --blue:#1565c0; --bg:#f4f6fb; --text:#1d1d1f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    user-select: none; -webkit-user-select: none;
+  }
+  h1 { margin: .5em 0 .1em; font-size: clamp(1.6rem, 3.5vw, 2.6rem); }
+
+  .step { display: none; flex-direction: column; align-items: center; width: 100%; padding: 0 1rem 1.5rem; }
+  .step.active { display: flex; }
+  .instructions { font-size: clamp(1.1rem, 2.2vw, 1.5rem); margin: .3em 0 .7em; max-width: 40em; }
+
+  /* ---------- Camera ---------- */
+  .stage {
+    position: relative; height: min(64vh, calc(90vw * 4 / 3)); aspect-ratio: 3 / 4;
+    border-radius: 18px; overflow: hidden; background: #000;
+    box-shadow: 0 6px 24px rgba(0,0,0,.25);
+  }
+  .stage video, .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stage video { object-fit: cover; transform: scaleX(-1); }
+  #countdown {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: min(30vh, 12rem); font-weight: 800; color: #fff;
+    text-shadow: 0 0 30px rgba(0,0,0,.7); pointer-events: none;
+  }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .5s; }
+  #flash.on { opacity: 1; transition: none; }
+
+  /* ---------- Buttons ---------- */
+  .buttons { display: flex; flex-wrap: wrap; justify-content: center; margin-top: .7em; }
+  button {
+    font: inherit; font-size: clamp(1.1rem, 2.2vw, 1.5rem); font-weight: 600;
+    border: none; border-radius: 999px; padding: .75em 1.7em; margin: .35em;
+    cursor: pointer; color: #fff; background: var(--blue);
+    box-shadow: 0 3px 10px rgba(0,0,0,.2); touch-action: manipulation;
+  }
+  button.big { font-size: clamp(1.3rem, 2.8vw, 1.9rem); padding: .85em 2.4em; }
+  button.go { background: var(--green); }
+  button.secondary { background: #fff; color: var(--text); border: 2px solid #ccc; }
+  button.insta { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+  button:disabled { opacity: .55; cursor: wait; }
+  button:active:not(:disabled) { transform: scale(.97); }
+
+  .status { min-height: 1.5em; font-size: 1.1rem; color: #555; margin: .4em 0 0; max-width: 40em; }
+  .status.error { color: #c62828; font-weight: 600; font-size: 1.2rem; }
+  .status.ok { color: #1b7f36; font-weight: 600; font-size: 1.2rem; }
+
+  /* ---------- Review ---------- */
+  #review-canvas {
+    height: min(60vh, calc(90vw * 4 / 3)); max-width: 90vw;
+    border-radius: 18px; box-shadow: 0 6px 24px rgba(0,0,0,.25);
+    touch-action: none; cursor: grab;
+  }
+
+  /* ---------- Result ---------- */
+  .faces { display: flex; gap: 4vw; justify-content: center; flex-wrap: wrap; }
+  .faces figure { margin: 0; }
+  .faces img {
+    display: block; height: min(50vh, calc(42vw * 4 / 3)); aspect-ratio: 3 / 4;
+    border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.2);
+    transition: transform 1.2s ease-in-out;
+  }
+  figcaption { font-size: 1.3rem; font-weight: 600; margin-top: .5em; }
+  #face-original { transform: rotate(0deg); }
+  #face-thatcher { transform: rotate(180deg); }
+  .faces.turned #face-original { transform: rotate(180deg); }
+  .faces.turned #face-thatcher { transform: rotate(360deg); }
+  #explain { display: none; max-width: 46em; font-size: 1.1rem; color: #333; line-height: 1.45; margin-top: 1em; }
+
+  /* ---------- Instagram popup ---------- */
+  dialog {
+    border: none; border-radius: 20px; padding: 1.6rem 1.8rem 1.2rem;
+    max-width: min(92vw, 34rem); box-shadow: 0 10px 40px rgba(0,0,0,.35);
+    user-select: text; -webkit-user-select: text;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog h2 { margin: 0 0 .4em; }
+  dialog p.text { font-size: 1.15rem; line-height: 1.45; margin: 0 0 1em; }
+  #insta-name {
+    width: 100%; font: inherit; font-size: 1.4rem; padding: .6em .8em;
+    border: 2px solid #bbb; border-radius: 12px; text-align: center;
+  }
+  #insta-name:focus { outline: none; border-color: #dc2743; }
+</style>
+</head>
+<body>
+
+<h1>The Thatcher Illusion</h1>
+
+<!-- STEP 1: CAMERA -->
+<section id="step-camera" class="step active">
+  <p class="instructions">Fit your <b>head and shoulders</b> inside the outline, look at the camera and press <b>Take photo</b>.<br><small>Tip: Taking off glasses, if you're wearing them, makes the effect stronger.</small></p>
+  <div class="stage">
+    <video id="video" autoplay playsinline muted></video>
+    <svg viewBox="0 0 300 400" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <mask id="cutout">
+          <rect width="300" height="400" fill="white"/>
+          <ellipse cx="150" cy="160" rx="75" ry="100" fill="black"/>
+          <path d="M20 400 C25 340 70 315 118 305 C124 293 126 275 126 255 L174 255 C174 275 176 293 182 305 C230 315 275 340 280 400 Z" fill="black"/>
+        </mask>
+      </defs>
+      <rect width="300" height="400" fill="rgba(0,0,0,0.45)" mask="url(#cutout)"/>
+      <g fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="10 7" stroke-linecap="round">
+        <ellipse cx="150" cy="160" rx="75" ry="100"/>
+        <path d="M20 400 C25 340 70 315 118 305 C124 293 126 275 126 255"/>
+        <path d="M174 255 C174 275 176 293 182 305 C230 315 275 340 280 400"/>
+      </g>
+    </svg>
+    <div id="countdown"></div>
+    <div id="flash"></div>
+  </div>
+  <div class="buttons">
+    <button id="btn-capture" class="big go" disabled>Loading…</button>
+  </div>
+  <p id="camera-status" class="status"></p>
+</section>
+
+<!-- STEP 2: CONFIRM DETECTION -->
+<section id="step-review" class="step">
+  <p class="instructions">Are the <b style="color:var(--green)">green boxes</b> around your <b>eyes</b> and <b>mouth</b>?</p>
+  <canvas id="review-canvas"></canvas>
+  <p class="status">If a box is slightly off, you can drag it into place.</p>
+  <div class="buttons">
+    <button id="btn-confirm" class="big go">✔ Yes, that's right</button>
+    <button id="btn-retake" class="secondary">↺ No, take a new photo</button>
+  </div>
+</section>
+
+<!-- STEP 3: RESULT -->
+<section id="step-result" class="step">
+  <p id="result-text" class="instructions"></p>
+  <div id="faces" class="faces">
+    <figure><img id="face-original" alt="Your original photo"><figcaption>Original</figcaption></figure>
+    <figure><img id="face-thatcher" alt="Your thatcherised photo"><figcaption>Thatcherised</figcaption></figure>
+  </div>
+  <div class="buttons">
+    <button id="btn-turn" class="big go">🔄 Turn the pictures around</button>
+  </div>
+  <div class="buttons">
+    <button id="btn-print" class="secondary">🖨 Print</button>
+    <button id="btn-insta" class="insta">📷 Share on Instagram</button>
+    <button id="btn-restart" class="secondary">Start again</button>
+  </div>
+  <p id="result-status" class="status"></p>
+  <p id="explain">
+    <b>What happened?</b> In the right-hand photo, your eyes and mouth were flipped upside down.
+    When a face is upside down, your brain mainly checks the separate parts (eyes, nose, mouth),
+    and they look fine. When the face is the right way up, your brain sees the face as a whole
+    and notices right away that something is badly wrong. This is the <i>Thatcher illusion</i>,
+    discovered by Peter Thompson in 1980 using a photo of Margaret Thatcher.
+  </p>
+</section>
+
+<!-- INSTAGRAM POPUP -->
+<dialog id="insta-dialog">
+  <form id="insta-form" novalidate>
+    <h2>Share on Instagram</h2>
+    <p class="text">If you want, we can upload the image on Instagram and tag you so you can share it with your friends. Please enter your Instagram username below.</p>
+    <input id="insta-name" type="text" placeholder="@yourusername" maxlength="40"
+           autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done">
+    <p id="insta-error" class="status error"></p>
+    <div class="buttons">
+      <button type="submit" class="go">Confirm</button>
+      <button type="button" id="insta-cancel" class="secondary">Don't upload</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module">
+/* ================= SETTINGS ================= */
+const CONFIG = {
+  includeEyebrows: false,       // flip eyebrows together with the eyes (stronger effect)
+  countdownSeconds: 3,
+  idleResetSeconds: 90,        // return to start and delete the photos after this much inactivity
+  eyePad:   { x: 0.28, y: 0.25 },
+  mouthPad: { x: 0.28, y: 0.25 },
+  printCaption: "Thatcher Illusion, Leeds Trinity University",
+  autoPrint: false,            // true = print dialog opens automatically in the print tab
+  invertedFileRotated: true,   // true = "_inverted" file is saved upside down (as shown on screen)
+};
+const MP_URL    = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const WASM_URL  = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+/* MediaPipe face-mesh landmark indices */
+const RIGHT_EYE  = [33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246];
+const LEFT_EYE   = [263,249,390,373,374,380,381,382,362,398,384,385,386,387,388,466];
+const RIGHT_BROW = [46,53,52,65,55,70,63,105,66,107];
+const LEFT_BROW  = [276,283,282,295,285,300,293,334,296,336];
+const LIPS       = [61,146,91,181,84,17,314,405,321,375,291,409,270,269,267,0,37,39,40,185];
+
+/* ================= ELEMENTS & STATE ================= */
+const $ = id => document.getElementById(id);
+const video = $("video"), btnCapture = $("btn-capture"), camStatus = $("camera-status");
+const countdownEl = $("countdown"), flashEl = $("flash");
+const reviewCanvas = $("review-canvas"), rctx = reviewCanvas.getContext("2d");
+const faces = $("faces"), imgOrig = $("face-original"), imgThatch = $("face-thatcher");
+const resultStatus = $("result-status");
+const dlg = $("insta-dialog"), instaName = $("insta-name"), instaError = $("insta-error");
+
+let landmarker = null, cameraReady = false, busy = false;
+let photo = null, boxes = [], currentStep = "camera", idleTimer = null;
+let thatcherCanvas = null, thatcherInvertedCanvas = null;
+let origURL = "", thatchInvURL = "";
+let printWin = null;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function showStep(name) {
+  currentStep = name;
+  for (const s of document.querySelectorAll(".step")) s.classList.remove("active");
+  $("step-" + name).classList.add("active");
+  resetIdle();
+}
+function setStatus(el, msg, kind = "") {
+  el.textContent = msg;
+  el.classList.toggle("error", kind === "error");
+  el.classList.toggle("ok", kind === "ok");
+}
+function updateCaptureButton() {
+  const ready = landmarker && cameraReady && !busy;
+  btnCapture.disabled = !ready;
+  if (!busy) btnCapture.textContent = ready ? "📸 Take photo" : "Loading…";
+}
+
+/* ================= CAMERA ================= */
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setStatus(camStatus, "Camera not available. Open this page via https:// or http://localhost.", "error");
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    });
+    video.srcObject = stream;
+    await video.play();
+    cameraReady = true;
+  } catch (e) {
+    setStatus(camStatus, "Could not start the camera (" + e.name + "). Please allow camera access and reload.", "error");
+  }
+  updateCaptureButton();
+}
+
+/* ================= FACE MODEL ================= */
+async function loadModel() {
+  try {
+    const mod = await import(MP_URL);
+    const { FaceLandmarker, FilesetResolver } = mod.FaceLandmarker ? mod : mod.default;
+    const fileset = await FilesetResolver.forVisionTasks(WASM_URL);
+    const make = delegate => FaceLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: MODEL_URL, delegate },
+      runningMode: "IMAGE",
+      numFaces: 1,
+    });
+    try { landmarker = await make("GPU"); }
+    catch (e) { console.warn("GPU failed, using CPU", e); landmarker = await make("CPU"); }
+  } catch (e) {
+    console.error(e);
+    setStatus(camStatus, "Could not load the face detector. Check the internet connection and reload.", "error");
+  }
+  updateCaptureButton();
+}
+
+/* ================= CAPTURE ================= */
+function grabFrame() {
+  const vw = video.videoWidth, vh = video.videoHeight, target = 3 / 4;
+  let sw, sh;
+  if (vw / vh > target) { sh = vh; sw = Math.round(vh * target); }
+  else { sw = vw; sh = Math.round(vw / target); }
+  const sx = (vw - sw) / 2, sy = (vh - sh) / 2;
+  const c = document.createElement("canvas");
+  c.width = sw; c.height = sh;
+  const ctx = c.getContext("2d");
+  ctx.translate(sw, 0); ctx.scale(-1, 1);
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+  return c;
+}
+
+async function onCapture() {
+  if (busy) return;
+  busy = true; btnCapture.disabled = true; setStatus(camStatus, "");
+  for (let i = CONFIG.countdownSeconds; i > 0; i--) {
+    btnCapture.textContent = "Smile!";
+    countdownEl.textContent = i;
+    await sleep(1000);
+  }
+  countdownEl.textContent = "";
+  photo = grabFrame();
+  flashEl.classList.add("on");
+  requestAnimationFrame(() => requestAnimationFrame(() => flashEl.classList.remove("on")));
+
+  btnCapture.textContent = "Finding your face…";
+  await sleep(60);
+  let result = null;
+  try { result = landmarker.detect(photo); } catch (e) { console.error(e); }
+  busy = false;
+
+  if (!result?.faceLandmarks?.length) {
+    updateCaptureButton();
+    setStatus(camStatus, "Oops, no face found. Look straight at the camera, inside the outline, and try again.", "error");
+    return;
+  }
+  boxes = computeBoxes(result.faceLandmarks[0], photo.width, photo.height);
+  updateCaptureButton();
+  drawReview();
+  showStep("review");
+}
+
+/* ================= FEATURE BOXES ================= */
+function boxFrom(lm, idx, W, H, pad, label) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const i of idx) {
+    const x = lm[i].x * W, y = lm[i].y * H;
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x);
+    y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  const fw = x1 - x0;
+  x0 = clamp(x0 - fw * pad.x, 0, W); x1 = clamp(x1 + fw * pad.x, 0, W);
+  y0 = clamp(y0 - fw * pad.y, 0, H); y1 = clamp(y1 + fw * pad.y, 0, H);
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0, label };
+}
+function computeBoxes(lm, W, H) {
+  const eyeR = CONFIG.includeEyebrows ? [...RIGHT_EYE, ...RIGHT_BROW] : RIGHT_EYE;
+  const eyeL = CONFIG.includeEyebrows ? [...LEFT_EYE, ...LEFT_BROW] : LEFT_EYE;
+  return [
+    boxFrom(lm, eyeR, W, H, CONFIG.eyePad, "eye"),
+    boxFrom(lm, eyeL, W, H, CONFIG.eyePad, "eye"),
+    boxFrom(lm, LIPS, W, H, CONFIG.mouthPad, "mouth"),
+  ];
+}
+
+function drawReview() {
+  reviewCanvas.width = photo.width; reviewCanvas.height = photo.height;
+  rctx.drawImage(photo, 0, 0);
+  const lw = Math.max(3, photo.width / 150);
+  rctx.save();
+  rctx.lineWidth = lw; rctx.strokeStyle = "#22e05a";
+  rctx.shadowColor = "rgba(0,0,0,.6)"; rctx.shadowBlur = lw * 2;
+  rctx.font = `bold ${Math.round(lw * 6)}px system-ui, sans-serif`;
+  rctx.fillStyle = "#22e05a"; rctx.textBaseline = "bottom";
+  for (const b of boxes) {
+    rctx.strokeRect(b.x, b.y, b.w, b.h);
+    rctx.fillText(b.label, b.x, b.y - lw);
+  }
+  rctx.restore();
+}
+
+/* Drag boxes to correct them */
+let drag = null;
+function canvasPoint(e) {
+  const r = reviewCanvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * reviewCanvas.width / r.width,
+           y: (e.clientY - r.top) * reviewCanvas.height / r.height };
+}
+reviewCanvas.addEventListener("pointerdown", e => {
+  const p = canvasPoint(e);
+  const b = [...boxes].reverse().find(b => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h);
+  if (!b) return;
+  drag = { b, dx: p.x - b.x, dy: p.y - b.y };
+  reviewCanvas.setPointerCapture(e.pointerId);
+  reviewCanvas.style.cursor = "grabbing";
+});
+reviewCanvas.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const p = canvasPoint(e), b = drag.b;
+  b.x = clamp(p.x - drag.dx, 0, reviewCanvas.width - b.w);
+  b.y = clamp(p.y - drag.dy, 0, reviewCanvas.height - b.h);
+  drawReview();
+});
+const endDrag = () => { drag = null; reviewCanvas.style.cursor = "grab"; };
+reviewCanvas.addEventListener("pointerup", endDrag);
+reviewCanvas.addEventListener("pointercancel", endDrag);
+
+/* ================= THATCHERISE ================= */
+function featherMask(w, h) {
+  const f = Math.max(2, Math.round(Math.min(w, h) * 0.12));
+  const m = document.createElement("canvas");
+  m.width = w; m.height = h;
+  const c = m.getContext("2d");
+  c.fillStyle = "#fff";
+  if ("filter" in c) { c.filter = `blur(${f / 2}px)`; c.fillRect(f, f, w - 2 * f, h - 2 * f); }
+  else c.fillRect(0, 0, w, h);
+  return m;
+}
+function thatcherise(src, boxes) {
+  const out = document.createElement("canvas");
+  out.width = src.width; out.height = src.height;
+  const ctx = out.getContext("2d");
+  ctx.drawImage(src, 0, 0);
+  for (const b of boxes) {
+    const x = Math.round(b.x), y = Math.round(b.y), w = Math.round(b.w), h = Math.round(b.h);
+    if (w < 2 || h < 2) continue;
+    const piece = document.createElement("canvas");
+    piece.width = w; piece.height = h;
+    const pc = piece.getContext("2d");
+    pc.translate(0, h); pc.scale(1, -1);
+    pc.drawImage(src, x, y, w, h, 0, 0, w, h);
+    pc.setTransform(1, 0, 0, 1, 0, 0);
+    pc.globalCompositeOperation = "destination-in";
+    pc.drawImage(featherMask(w, h), 0, 0);
+    ctx.drawImage(piece, x, y);
+  }
+  return out;
+}
+function rotate180(src) {
+  const c = document.createElement("canvas");
+  c.width = src.width; c.height = src.height;
+  const ctx = c.getContext("2d");
+  ctx.translate(src.width, src.height);
+  ctx.rotate(Math.PI);
+  ctx.drawImage(src, 0, 0);
+  return c;
+}
+
+function onConfirm() {
+  thatcherCanvas = thatcherise(photo, boxes);
+  thatcherInvertedCanvas = rotate180(thatcherCanvas);
+  origURL = photo.toDataURL("image/jpeg", 0.92);
+  thatchInvURL = thatcherInvertedCanvas.toDataURL("image/jpeg", 0.92);
+
+  imgOrig.src = origURL;
+  imgThatch.src = thatcherCanvas.toDataURL("image/jpeg", 0.92); // rotated on screen with CSS (animated)
+  faces.classList.remove("turned");
+  $("btn-turn").textContent = "🔄 Turn the pictures around";
+  $("result-text").innerHTML = "Here are two photos of you. One is upside down.<br>They look pretty much the same… right?";
+  $("explain").style.display = "none";
+  setStatus(resultStatus, "");
+  showStep("result");
+}
+
+function onTurn() {
+  const turned = faces.classList.toggle("turned");
+  $("btn-turn").textContent = turned ? "🔄 Turn them back" : "🔄 Turn the pictures around";
+  if (turned) {
+    $("result-text").innerHTML = "<b>Surprise!</b> Now you can see what really happened to the eyes and mouth.";
+    $("explain").style.display = "block";
+  }
+}
+
+/* ================= PRINT VIEW (new tab) ================= */
+function closePrintWindow() {
+  if (printWin && !printWin.closed) printWin.close();
+  printWin = null;
+}
+function openPrintView() {
+  closePrintWindow();
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Thatcher Illusion</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  html, body { margin: 0; background: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .faces { display: flex; gap: 10mm; justify-content: center; align-items: center; }
+  .faces img { display: block; height: min(75vh, 140mm); width: auto; }
+  .caption { margin: 6mm 0 0; font-size: 10pt; color: #444; text-align: center; }
+  .toolbar { position: fixed; top: 12px; right: 12px; display: flex; gap: 8px; }
+  .toolbar button { font: inherit; font-size: 1.1rem; font-weight: 600; padding: .6em 1.4em;
+                    border-radius: 999px; border: 2px solid #ccc; background: #fff; cursor: pointer; }
+  @media print { .toolbar { display: none; } body { min-height: 0; padding-top: 8mm; } }
+</style></head>
+<body>
+  <div class="toolbar">
+    <button id="print-btn">🖨 Print</button>
+    <button id="close-btn">✕ Close</button>
+  </div>
+  <div class="faces">
+    <img src="${origURL}" alt="Original">
+    <img src="${thatchInvURL}" alt="Thatcherised (upside down)">
+  </div>
+  <p class="caption">${CONFIG.printCaption}</p>
+<\/body><\/html>`;
+
+  printWin = window.open("", "_blank");
+  if (!printWin) {
+    setStatus(resultStatus, "The print page was blocked. Please allow pop-ups for this site.", "error");
+    return;
+  }
+  const doc = printWin.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  // Buttons are wired up from here, so the print page needs no <script> tag of its own
+  const win = printWin;
+  doc.getElementById("print-btn").addEventListener("click", () => win.print());
+  doc.getElementById("close-btn").addEventListener("click", () => win.close());
+
+  if (CONFIG.autoPrint) {
+    Promise.all([...doc.images].map(img => img.decode().catch(() => {})))
+      .then(() => win.print());
+  }
+}
+
+/* ================= INSTAGRAM SAVE ================= */
+function sanitizeUsername(raw) {
+  return raw.trim()
+            .replace(/@/g, "")                // remove @
+            .replace(/[^A-Za-z0-9._]/g, "")   // only characters Instagram allows
+            .slice(0, 30)
+            .toLowerCase();
+}
+function canvasToBlob(canvas) {
+  return new Promise(res => canvas.toBlob(res, "image/jpeg", 0.92));
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+async function saveImagesFor(name) {
+  const invertedSource = CONFIG.invertedFileRotated ? thatcherInvertedCanvas : thatcherCanvas;
+  const [upright, inverted] = await Promise.all([canvasToBlob(photo), canvasToBlob(invertedSource)]);
+  downloadBlob(upright, `${name}_upright.jpg`);
+  await sleep(400); // small gap so the browser accepts both downloads
+  downloadBlob(inverted, `${name}_inverted.jpg`);
+}
+
+function openInstaDialog() {
+  instaName.value = "";
+  setStatus(instaError, "");
+  dlg.showModal();
+  instaName.focus();
+}
+$("insta-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = sanitizeUsername(instaName.value);
+  if (!name) {
+    setStatus(instaError, "Please enter your Instagram username.", "error");
+    instaName.focus();
+    return;
+  }
+  dlg.close();
+  try {
+    await saveImagesFor(name);
+    setStatus(resultStatus, `Thanks, @${name}! We'll post your photos and tag you.`, "ok");
+  } catch (err) {
+    console.error(err);
+    setStatus(resultStatus, "Sorry, something went wrong while saving the photos.", "error");
+  }
+});
+$("insta-cancel").addEventListener("click", () => dlg.close());
+
+/* ================= RESET / IDLE ================= */
+function restart() {
+  if (dlg.open) dlg.close();
+  closePrintWindow();
+  photo = null; boxes = []; thatcherCanvas = null; thatcherInvertedCanvas = null;
+  origURL = ""; thatchInvURL = "";
+  imgOrig.removeAttribute("src"); imgThatch.removeAttribute("src");
+  rctx.clearRect(0, 0, reviewCanvas.width, reviewCanvas.height);
+  setStatus(camStatus, ""); setStatus(resultStatus, "");
+  showStep("camera");
+  updateCaptureButton();
+}
+function resetIdle() {
+  clearTimeout(idleTimer);
+  if (currentStep !== "camera") idleTimer = setTimeout(restart, CONFIG.idleResetSeconds * 1000);
+}
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, resetIdle));
+
+/* Space / Enter presses the main button — but not while typing or when a button has focus */
+document.addEventListener("keydown", e => {
+  if (e.code !== "Space" && e.code !== "Enter") return;
+  if (dlg.open || e.target.closest("input, textarea, button, dialog")) return;
+  e.preventDefault();
+  const main = document.querySelector(".step.active button.go");
+  if (main && !main.disabled) main.click();
+});
+
+/* ================= WIRE UP ================= */
+btnCapture.addEventListener("click", onCapture);
+$("btn-retake").addEventListener("click", restart);
+$("btn-confirm").addEventListener("click", onConfirm);
+$("btn-turn").addEventListener("click", onTurn);
+$("btn-print").addEventListener("click", openPrintView);
+$("btn-insta").addEventListener("click", openInstaDialog);
+$("btn-restart").addEventListener("click", restart);
+
+startCamera();
+loadModel();
+</script>
+</body>
+</html>
